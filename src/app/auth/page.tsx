@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 
+import { AuthScreen } from "@/components/auth/auth-screen";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export default async function Home() {
+export default async function AuthPage() {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -12,5 +13,5 @@ export default async function Home() {
     redirect("/board");
   }
 
-  redirect("/auth");
+  return <AuthScreen />;
 }
