@@ -1,3 +1,4 @@
+import { assertHoloModelExists } from "@/lib/holo/catalog";
 import { resolveHoloModel, type StudioAspectRatio, type StudioProvider } from "@/lib/holo/models";
 
 const baseUrl = process.env.HOLO_API_BASE_URL ?? "https://api.dealonhorizon.us";
@@ -56,11 +57,14 @@ export function hasHoloEnv() {
 }
 
 export async function submitGenerationTask(input: SubmitGenerationInput) {
+  const resolvedModel = resolveHoloModel(input.provider, input.aspectRatio);
+  await assertHoloModelExists(resolvedModel);
+
   const response = await fetch(`${baseUrl}/v1/generate`, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify({
-      model: resolveHoloModel(input.provider, input.aspectRatio),
+      model: resolvedModel,
       messages: [
         {
           role: "user",
@@ -73,7 +77,9 @@ export async function submitGenerationTask(input: SubmitGenerationInput) {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `HOLO submit failed with ${response.status}`);
+    throw new Error(
+      text || `HOLO submit failed with ${response.status} using model ${resolvedModel}`,
+    );
   }
 
   return (await response.json()) as HoloTaskSubmitResponse;

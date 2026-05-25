@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
 
-import {
-  getGenerationTask,
-  getPublicMediaUrl,
-  hasHoloEnv,
-  submitGenerationTask,
-} from "@/lib/holo/client";
+import { hasHoloEnv, submitGenerationTask } from "@/lib/holo/client";
 import { type StudioAspectRatio, type StudioProvider } from "@/lib/holo/models";
-import { createGenerationRecord, syncPersistedTask } from "@/lib/supabase/generations";
+import { createGenerationRecord } from "@/lib/supabase/generations";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const allowedProviders = new Set<StudioProvider>(["image2", "nanobanana"]);
@@ -86,58 +81,6 @@ export async function POST(request: Request) {
       {
         error:
           error instanceof Error ? error.message : "Failed to submit generation task.",
-      },
-      { status: 500 },
-    );
-  }
-}
-
-export async function GET(request: Request) {
-  if (!hasHoloEnv()) {
-    return NextResponse.json(
-      { error: "Missing HOLO server environment variables." },
-      { status: 500 },
-    );
-  }
-
-  const { searchParams } = new URL(request.url);
-  const taskId = searchParams.get("taskId");
-
-  if (!taskId) {
-    return NextResponse.json({ error: "taskId is required." }, { status: 400 });
-  }
-
-  try {
-    const task = await getGenerationTask(taskId);
-    const supabase = await createSupabaseServerClient();
-
-    if (supabase) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        await syncPersistedTask(supabase, {
-          taskId: task.task_id,
-          status: task.status,
-          fileExt: task.result?.file_ext,
-          error: task.error,
-        });
-      }
-    }
-
-    return NextResponse.json({
-      ...task,
-      public_file_url:
-        task.status === "completed"
-          ? getPublicMediaUrl(task.task_id, task.result?.file_ext)
-          : null,
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Failed to fetch task status.",
       },
       { status: 500 },
     );

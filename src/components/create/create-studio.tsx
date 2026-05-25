@@ -204,7 +204,7 @@ export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) 
         pendingTaskIds.map(async (taskId) => {
           try {
             const response = await fetch(
-              `/api/generate-image?taskId=${encodeURIComponent(taskId)}`,
+              `/api/generations/${encodeURIComponent(taskId)}`,
               { cache: "no-store" },
             );
 
@@ -293,7 +293,7 @@ export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) 
     setSubmitError(null);
 
     try {
-      const response = await fetch("/api/generate-image", {
+      const response = await fetch("/api/generations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

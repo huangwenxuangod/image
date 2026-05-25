@@ -6,7 +6,7 @@ type ProviderMap = Record<StudioAspectRatio, string>;
 const modelMap: Record<StudioProvider, ProviderMap> = {
   image2: {
     "1:1": process.env.HOLO_MODEL_IMAGE2_1X1 ?? "GPT-images2 1:1",
-    "4:5": process.env.HOLO_MODEL_IMAGE2_4X5 ?? "GPT-images2 2:3-2K",
+    "4:5": process.env.HOLO_MODEL_IMAGE2_4X5 ?? "GPT-images2 2:3",
     "16:9": process.env.HOLO_MODEL_IMAGE2_16X9 ?? "GPT-images2 16:9-2K",
   },
   nanobanana: {
