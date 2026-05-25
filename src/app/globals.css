@@ -1,17 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #f5f2ec;
-  --bg-soft: #efebe4;
-  --panel: rgba(243, 239, 232, 0.88);
-  --panel-strong: rgba(255, 255, 255, 0.72);
-  --bubble: #f1ede6;
-  --line: rgba(30, 32, 35, 0.08);
-  --line-strong: rgba(30, 32, 35, 0.15);
-  --ink: #212428;
-  --muted: #6f7681;
-  --shadow-soft: 0 8px 28px rgba(23, 25, 27, 0.05);
-  --shadow-float: 0 24px 70px rgba(23, 25, 27, 0.08);
+  --bg: #f7f7f4;
+  --sidebar: #f2f2ee;
+  --surface: #ffffff;
+  --surface-soft: #fafaf7;
+  --panel: #f7f7f3;
+  --panel-strong: #ffffff;
+  --bubble: #ece8df;
+  --line: rgba(20, 20, 18, 0.08);
+  --line-strong: rgba(20, 20, 18, 0.14);
+  --ink: #1f201c;
+  --text-soft: #6c6d67;
+  --text-faint: #a1a299;
+  --muted: #6c6d67;
+  --shadow-soft: 0 8px 28px rgba(20, 20, 18, 0.04);
+  --shadow-float: 0 28px 64px rgba(20, 20, 18, 0.06);
   --font-sans: var(--font-instrument-sans);
   --font-display: var(--font-instrument-sans);
 }
@@ -31,9 +35,7 @@ html {
 }
 
 body {
-  background:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.94), transparent 34%),
-    linear-gradient(180deg, #faf7f2 0%, var(--bg) 26%, #f1ece5 100%);
+  background: var(--bg);
   color: var(--ink);
   font-family: var(--font-sans), sans-serif;
   min-height: 100vh;
