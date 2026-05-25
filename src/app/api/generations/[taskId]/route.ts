@@ -1,13 +1,20 @@
+import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 import { getGenerationTask, getPublicMediaUrl, hasHoloEnv } from "@/lib/holo/client";
 import { syncPersistedTask } from "@/lib/supabase/generations";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(
   _request: Request,
   context: RouteContext<"/api/generations/[taskId]">,
 ) {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
   if (!hasHoloEnv()) {
     return NextResponse.json(
       { error: "Missing HOLO server environment variables." },
@@ -23,30 +30,25 @@ export async function GET(
 
   try {
     const task = await getGenerationTask(taskId);
-    const supabase = await createSupabaseServerClient();
+    const supabase = createSupabaseAdminClient();
 
     if (supabase) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const syncResult = await syncPersistedTask(supabase, {
+        userId,
+        taskId: task.task_id,
+        status: task.status,
+        fileExt: task.result?.file_ext,
+        error: task.error,
+      });
 
-      if (user) {
-        const syncResult = await syncPersistedTask(supabase, {
-          taskId: task.task_id,
-          status: task.status,
-          fileExt: task.result?.file_ext,
-          error: task.error,
-        });
-
-        return NextResponse.json({
-          ...task,
-          public_file_url:
-            syncResult.signedUrl ??
-            (task.status === "completed"
-              ? getPublicMediaUrl(task.task_id, task.result?.file_ext)
-              : null),
-        });
-      }
+      return NextResponse.json({
+        ...task,
+        public_file_url:
+          syncResult.signedUrl ??
+          (task.status === "completed"
+            ? getPublicMediaUrl(task.task_id, task.result?.file_ext)
+            : null),
+      });
     }
 
     return NextResponse.json({

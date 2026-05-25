@@ -1,20 +1,29 @@
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
 import { BoardStudio } from "@/components/board/board-studio";
 import { fetchRecentFeed } from "@/lib/supabase/generations";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export default async function BoardPage() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+  const [{ userId }, user, supabase] = await Promise.all([
+    auth(),
+    currentUser(),
+    Promise.resolve(createSupabaseAdminClient()),
+  ]);
 
-  if (!user?.email) {
-    redirect("/auth");
+  if (!userId) {
+    redirect("/sign-in");
   }
 
-  const persistedFeed = supabase ? await fetchRecentFeed(supabase) : [];
+  const persistedFeed = supabase ? await fetchRecentFeed(supabase, userId) : [];
 
-  return <BoardStudio viewerEmail={user.email} persistedFeed={persistedFeed} />;
+  return (
+    <BoardStudio
+      viewerEmail={
+        user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses?.[0]?.emailAddress ?? userId
+      }
+      persistedFeed={persistedFeed}
+    />
+  );
 }

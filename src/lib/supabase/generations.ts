@@ -80,6 +80,7 @@ export async function createGenerationRecord(
 export async function syncPersistedTask(
   supabase: SupabaseLike,
   input: {
+    userId: string;
     taskId: string;
     status: "queued" | "processing" | "completed" | "failed" | "cancelled";
     fileExt?: string;
@@ -88,14 +89,21 @@ export async function syncPersistedTask(
 ): Promise<{ signedUrl: string | null }> {
   const generationImagesTable = supabase.from("generation_images") as {
     update: (value: Record<string, unknown>) => {
-      eq: (column: string, value: string) => Promise<{ error: { message: string } | null }>;
+      eq: (column: string, value: string) => {
+        eq: (
+          column: string,
+          value: string,
+        ) => Promise<{ error: { message: string } | null }>;
+      };
     };
     select: (columns: string) => {
       eq: (column: string, value: string) => {
-        maybeSingle: () => Promise<{
-          data: Record<string, unknown> | null;
-          error: { message: string } | null;
-        }>;
+        eq: (column: string, value: string) => {
+          maybeSingle: () => Promise<{
+            data: Record<string, unknown> | null;
+            error: { message: string } | null;
+          }>;
+        };
       };
     };
   };
@@ -103,6 +111,7 @@ export async function syncPersistedTask(
   const imageRecord = await generationImagesTable
     .select("generation_id, user_id, storage_path, source_url")
     .eq("holo_task_id", input.taskId)
+    .eq("user_id", input.userId)
     .maybeSingle();
 
   if (imageRecord.error || !imageRecord.data?.generation_id) {
@@ -144,7 +153,8 @@ export async function syncPersistedTask(
       latest_error: latestError,
       updated_at: new Date().toISOString(),
     })
-    .eq("holo_task_id", input.taskId);
+    .eq("holo_task_id", input.taskId)
+    .eq("user_id", input.userId);
 
   if (updateImage.error) {
     throw new Error(updateImage.error.message);
@@ -208,20 +218,24 @@ export async function syncPersistedTask(
 
 export async function fetchRecentFeed(
   supabase: SupabaseLike,
+  userId: string,
 ): Promise<PersistedFeedAsset[]> {
   const result = await (supabase.from("generation_images") as {
     select: (columns: string) => {
-      order: (column: string, options: { ascending: boolean }) => {
-        limit: (count: number) => Promise<{
-          data: Array<Record<string, unknown>> | null;
-          error: { message: string } | null;
-        }>;
+      eq: (column: string, value: string) => {
+        order: (column: string, options: { ascending: boolean }) => {
+          limit: (count: number) => Promise<{
+            data: Array<Record<string, unknown>> | null;
+            error: { message: string } | null;
+          }>;
+        };
       };
     };
   })
     .select(
-      "id, holo_task_id, source_url, file_ext, status, latest_error, created_at, collections(name), generations(prompt, provider, remote_model, aspect_ratio)",
+      "id, holo_task_id, source_url, file_ext, status, latest_error, created_at, storage_path, collections(name), generations(prompt, provider, remote_model, aspect_ratio)",
     )
+    .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(24);
 

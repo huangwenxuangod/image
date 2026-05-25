@@ -1,15 +1,22 @@
+import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 import { hasHoloEnv, submitGenerationTask } from "@/lib/holo/client";
 import { type StudioAspectRatio, type StudioProvider } from "@/lib/holo/models";
 import { createGenerationRecord } from "@/lib/supabase/generations";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 const allowedProviders = new Set<StudioProvider>(["image2", "nanobanana"]);
 const allowedAspectRatios = new Set<StudioAspectRatio>(["1:1", "4:5", "16:9"]);
 const allowedCounts = new Set([1, 2, 4]);
 
 export async function POST(request: Request) {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
   if (!hasHoloEnv()) {
     return NextResponse.json(
       { error: "Missing HOLO server environment variables." },
@@ -52,27 +59,21 @@ export async function POST(request: Request) {
       ),
     );
 
-    const supabase = await createSupabaseServerClient();
+    const supabase = createSupabaseAdminClient();
     let generationId: string | null = null;
     let persisted = false;
 
     if (supabase) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        generationId = await createGenerationRecord(supabase, {
-          userId: user.id,
-          prompt,
-          provider,
-          remoteModel: tasks[0]?.model ?? provider,
-          aspectRatio,
-          imageCount: count,
-          tasks: tasks.map((task) => ({ taskId: task.task_id })),
-        });
-        persisted = true;
-      }
+      generationId = await createGenerationRecord(supabase, {
+        userId,
+        prompt,
+        provider,
+        remoteModel: tasks[0]?.model ?? provider,
+        aspectRatio,
+        imageCount: count,
+        tasks: tasks.map((task) => ({ taskId: task.task_id })),
+      });
+      persisted = true;
     }
 
     return NextResponse.json({ tasks, generationId, persisted }, { status: 202 });

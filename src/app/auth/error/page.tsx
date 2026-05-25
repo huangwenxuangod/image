@@ -11,14 +11,14 @@ export default function AuthErrorPage() {
           Sign-in could not be completed
         </h1>
         <p className="mt-3 text-[14px] leading-6 text-[var(--muted)]">
-          The magic link may have expired, already been used, or the redirect
-          URL is not configured in Supabase Auth.
+          Clerk sign-in could not be completed. The session may have expired or
+          the Clerk environment variables may be missing for this deployment.
         </p>
         <Link
-          href="/"
+          href="/sign-in"
           className="mt-6 inline-flex h-11 items-center rounded-[14px] bg-[var(--ink)] px-5 text-[14px] font-medium text-white"
         >
-          Back to studio
+          Back to sign in
         </Link>
       </div>
     </main>

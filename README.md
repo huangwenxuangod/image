@@ -1,13 +1,14 @@
-# YouMind-style Image Studio
+# Board Chat Image Studio
 
-A Next.js App Router scaffold for a prompt-first image generation product, designed around the YouMind-inspired workspace spec in [YOUMIND_UI_COPY_SPEC.md](./YOUMIND_UI_COPY_SPEC.md).
+Chat-first image generation workspace built with Next.js, Clerk, Supabase, and the HOLO queue API.
 
 ## Stack
 
-- Next.js 16
+- Next.js 16 App Router
 - React 19
 - Tailwind CSS 4
-- Supabase SSR helpers
+- Clerk authentication
+- Supabase Postgres + Storage
 - Bun
 
 ## Run locally
@@ -24,58 +25,91 @@ Open [http://localhost:3000](http://localhost:3000).
 Create `.env.local` from `.env.example` and fill in:
 
 ```bash
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_SUPABASE_GENERATED_BUCKET=generated-images
 HOLO_API_BASE_URL=https://api.dealonhorizon.us
 HOLO_API_KEY=
 ```
 
-Without env values, the UI still renders and shows a pending Supabase badge in the detail panel.
+Required behavior by env:
 
-## Supabase Auth setup
+- Clerk handles sign-in and sign-up.
+- Supabase is used only for database and storage persistence.
+- `SUPABASE_SERVICE_ROLE_KEY` is required for generation history writes and Storage uploads.
+- Without Supabase envs, the UI can still render, but persistence and image archiving are disabled.
 
-This project uses email magic links.
+## Clerk setup
 
-In Supabase Auth, add redirect URLs for:
+In Clerk:
 
-- `http://localhost:3000/auth/callback`
-- your Vercel production domain, for example `https://your-app.vercel.app/auth/callback`
-- any custom production domain you plan to use
+1. Create an application.
+2. Copy `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`.
+3. Set the app URLs if Clerk asks for them:
+   - local: `http://localhost:3000`
+   - production: your Vercel domain
+4. Ensure sign-in and sign-up routes are:
+   - `/sign-in`
+   - `/sign-up`
 
-If the redirect URL is missing, the app will land on `/auth/error` after email verification.
+## Supabase setup
+
+Run these SQL migrations in order:
+
+1. [supabase/migrations/20260524_000001_create_image_studio.sql](./supabase/migrations/20260524_000001_create_image_studio.sql)
+2. [supabase/migrations/20260525_000002_create_generated_images_bucket.sql](./supabase/migrations/20260525_000002_create_generated_images_bucket.sql)
+3. [supabase/migrations/20260525_000003_migrate_to_clerk_auth.sql](./supabase/migrations/20260525_000003_migrate_to_clerk_auth.sql)
+
+What these do:
+
+- create generation tables
+- create the private `generated-images` bucket
+- migrate user identity columns from `auth.users` UUIDs to Clerk string IDs
+
+For app env:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
 ## Vercel deployment
 
 Set these environment variables in Vercel:
 
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `CLERK_SECRET_KEY`
+- `NEXT_PUBLIC_CLERK_SIGN_IN_URL`
+- `NEXT_PUBLIC_CLERK_SIGN_UP_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_SUPABASE_GENERATED_BUCKET`
 - `HOLO_API_BASE_URL`
 - `HOLO_API_KEY`
 
-The project is Bun-compatible and already includes `bun.lock`, so Vercel can use Bun directly.
+If you installed Clerk through the Vercel Marketplace, the Clerk keys can be auto-provisioned.
 
-## Supabase Storage
+## Routes
 
-To persist generated images beyond HOLO's temporary 24-hour file window, run the storage migration:
-
-- [supabase/migrations/20260525_000002_create_generated_images_bucket.sql](./supabase/migrations/20260525_000002_create_generated_images_bucket.sql)
-
-This creates a private bucket named `generated-images` and owner-scoped storage policies.
+- `/sign-in`
+- `/sign-up`
+- `/board`
+- `/api/generations`
+- `/api/generations/[taskId]`
 
 ## Current scope
 
-- YouMind-style `Create` workspace shell
-- Sidebar, masonry-style asset feed, persistent composer, detail panel
-- Supabase browser/server client helpers
-- Proxy hook for auth session refresh
-- Real HOLO image submission routes at `/api/generations` and `/api/generations/[taskId]`
-- Email magic-link sign-in and auth callback flow
-- Draft SQL schema in `supabase/migrations/`
+- Clerk-authenticated board workspace
+- chat-first generation flow
+- HOLO task submission and polling
+- Supabase persistence for generations and images
+- automatic Storage archiving after image completion
+- board concept image on the auth screen
 
-## Next implementation steps
+## Remaining product work
 
-1. Wire Supabase auth and user profile state
-2. Apply the Supabase migration and connect generation history persistence
-3. Confirm the final `nanobanana` model SKU mapping and replace the fallback
-4. Store completed files in Supabase Storage for private access and long-term retention
+1. Replace the placeholder board visuals with the final YouMind-like chat workspace.
+2. Add Collections and Favorites write paths.
+3. Add richer workspace inspector states for selected image assets.

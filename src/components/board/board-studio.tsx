@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { useClerk } from "@clerk/nextjs";
 import {
   Check,
   ChevronDown,
@@ -31,7 +32,6 @@ import {
 } from "react-resizable-panels";
 
 import { generationAssets, type GenerationAsset } from "@/components/create/mock-data";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type { PersistedFeedAsset } from "@/lib/studio/feed";
 import { cn } from "@/lib/utils";
 
@@ -179,6 +179,7 @@ async function copyText(text: string) {
 
 export function BoardStudio({ viewerEmail, persistedFeed }: BoardStudioProps) {
   const router = useRouter();
+  const clerk = useClerk();
   const [feedAssets, setFeedAssets] = useState<FeedAsset[]>(
     persistedFeed.length > 0 ? persistedFeed : toMockFeedAssets(),
   );
@@ -371,23 +372,18 @@ export function BoardStudio({ viewerEmail, persistedFeed }: BoardStudioProps) {
   }
 
   function handleSignOut() {
-    const supabase = createSupabaseBrowserClient();
-
-    if (!supabase) {
-      setSignoutError("Supabase env is missing.");
-      return;
-    }
-
     startSignout(async () => {
-      const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        setSignoutError(error.message);
+      try {
+        await clerk.signOut({
+          redirectUrl: "/sign-in",
+        });
+      } catch (error) {
+        setSignoutError(error instanceof Error ? error.message : "Failed to sign out.");
         return;
       }
 
       setSignoutError(null);
-      router.push("/auth");
+      router.push("/sign-in");
       router.refresh();
     });
   }
