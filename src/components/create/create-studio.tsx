@@ -4,22 +4,30 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   Bookmark,
+  Check,
   CheckCheck,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Copy,
   Download,
+  Globe,
   FolderKanban,
   Heart,
   ImageIcon,
   LoaderCircle,
   LogIn,
   MoreHorizontal,
+  PanelsTopLeft,
+  Plus,
   Search,
   Settings2,
   SlidersHorizontal,
   Sparkles,
   Stars,
+  SunMedium,
+  ThumbsDown,
+  ThumbsUp,
   WandSparkles,
 } from "lucide-react";
 
@@ -388,15 +396,16 @@ export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) 
         <aside className="hidden w-[320px] shrink-0 rounded-[30px] border border-[var(--line)] bg-[var(--panel-strong)] p-3 shadow-[var(--shadow-soft)] backdrop-blur-2xl xl:flex xl:flex-col">
           <div className="mb-3 flex items-center justify-between px-2 pt-1">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[var(--ink)] text-[15px] font-semibold text-white">
-                ym
+              <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-white text-[15px] font-semibold text-[var(--ink)] shadow-[0_6px_18px_rgba(24,26,28,0.04)]">
+                un
               </div>
               <div>
                 <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
                   Workspace
                 </p>
-                <p className="text-[26px] font-semibold tracking-[-0.045em]">
+                <p className="flex items-center gap-1 text-[26px] font-semibold tracking-[-0.045em]">
                   Chaos
+                  <ChevronDown className="h-4 w-4 text-[var(--muted)]" strokeWidth={1.9} />
                 </p>
               </div>
             </div>
@@ -448,9 +457,12 @@ export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) 
             ))}
           </div>
 
-          <div className="mb-3 flex items-center gap-2 rounded-[18px] border border-[var(--line)] bg-white/85 px-4 py-3 text-[13px] text-[var(--muted)]">
-            <Search className="h-4 w-4" strokeWidth={1.9} />
-            Search tasks
+          <div className="mb-3 flex items-center justify-between px-2 text-[var(--muted)]">
+            <p className="text-[13px] font-medium">Tasks</p>
+            <div className="flex items-center gap-3">
+              <Search className="h-4 w-4" strokeWidth={1.9} />
+              <Plus className="h-4 w-4" strokeWidth={1.9} />
+            </div>
           </div>
 
           <div className="mb-3 flex items-center justify-between px-2">
@@ -472,9 +484,7 @@ export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) 
           </div>
 
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-            {feedAssets.map((asset, index) => {
-              const imageUrl = getAssetImage(asset);
-
+            {feedAssets.map((asset) => {
               return (
                 <button
                   key={asset.id}
@@ -484,47 +494,29 @@ export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) 
                     setInspectorOpen(true);
                   }}
                   className={cn(
-                    "w-full rounded-[20px] border px-3 py-3 text-left transition",
+                    "w-full rounded-[16px] border px-3 py-3 text-left transition",
                     activeId === asset.id
-                      ? "border-[var(--line-strong)] bg-white shadow-[0_14px_32px_rgba(24,26,28,0.06)]"
-                      : "border-transparent bg-transparent hover:border-[var(--line)] hover:bg-white/72",
+                      ? "border-transparent bg-[rgba(80,108,165,0.08)]"
+                      : "border-transparent bg-transparent hover:bg-white/72",
                   )}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[16px] border border-[var(--line)] bg-[var(--panel)]">
-                      {imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={imageUrl}
-                          alt={asset.prompt}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div
-                          className="absolute inset-0"
-                          style={
-                            asset.kind === "mock"
-                              ? artStyle(asset)
-                              : getLiveBackground(index)
-                          }
-                        />
-                      )}
+                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[var(--muted)]">
+                      <Check className="h-4 w-4" strokeWidth={1.9} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <p className="truncate text-[15px] font-medium tracking-[-0.02em]">
                           {asset.title}
                         </p>
-                        <span className="rounded-full bg-[var(--panel)] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[var(--muted)]">
-                          {asset.model}
-                        </span>
+                        <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-[#7aa3e8]" />
                       </div>
                       <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--muted)]">
                         {asset.prompt}
                       </p>
                       <div className="mt-2 flex items-center justify-between text-[11px] text-[var(--muted)]">
-                        <span>{statusLabel(asset)}</span>
                         <span>{asset.createdAt}</span>
+                        <span>{asset.model}</span>
                       </div>
                     </div>
                   </div>
@@ -563,13 +555,13 @@ export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) 
                       Live task flow
                     </span>
                   </div>
-                  <h1 className="mt-3 text-[34px] font-semibold tracking-[-0.055em] md:text-[40px]">
+                  <h1 className="mt-3 text-[31px] font-semibold tracking-[-0.055em] md:text-[36px]">
                     Prompt-first image studio
                   </h1>
                   <p className="mt-2 max-w-[72ch] text-[15px] leading-[1.8] text-[var(--muted)]">
-                    Reframed as a calm working session: write a prompt, submit
-                    a run, watch the queue, then inspect and archive each result
-                    without leaving the same canvas.
+                    Built like a calm working session instead of a tool sheet:
+                    prompt, queue, inspect, reuse, and archive every result in
+                    one continuous workspace.
                   </p>
                 </div>
 
@@ -613,13 +605,13 @@ export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) 
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[var(--ink)] text-[13px] font-semibold text-white">
-                          ym
+                          un
                         </div>
                         <div>
                           <p className="text-[15px] font-medium">Creative session</p>
                           <p className="text-[12px] text-[var(--muted)]">
                             Left rail for sessions, center for generation flow,
-                            right pane for preview and edits.
+                            right pane for preview and notes.
                           </p>
                         </div>
                       </div>
@@ -639,6 +631,15 @@ export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) 
                         <div className="max-w-[74%] rounded-[24px] rounded-br-[10px] bg-[var(--bubble)] px-5 py-4 text-[15px] leading-[1.75] shadow-[0_10px_24px_rgba(24,26,28,0.03)]">
                           {activeAsset.prompt}
                         </div>
+                      </div>
+
+                      <div className="ml-auto flex max-w-[74%] items-center gap-3 px-2 text-[var(--muted)]">
+                        <Copy className="h-4 w-4" strokeWidth={1.9} />
+                        <WandSparkles className="h-4 w-4" strokeWidth={1.9} />
+                        <Plus className="h-4 w-4" strokeWidth={1.9} />
+                        <PanelsTopLeft className="h-4 w-4" strokeWidth={1.9} />
+                        <ThumbsUp className="h-4 w-4" strokeWidth={1.9} />
+                        <ThumbsDown className="h-4 w-4" strokeWidth={1.9} />
                       </div>
 
                       <section className="rounded-[30px] border border-[var(--line)] bg-white/90 p-4 shadow-[0_16px_40px_rgba(24,26,28,0.04)] md:p-5">
@@ -932,6 +933,13 @@ export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) 
                         type="button"
                         className="inline-flex h-11 items-center gap-2 rounded-[16px] border border-[var(--line)] bg-white/88 px-4 text-[14px] font-medium"
                       >
+                        <Globe className="h-4 w-4" strokeWidth={1.9} />
+                        Search
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex h-11 items-center gap-2 rounded-[16px] border border-[var(--line)] bg-white/88 px-4 text-[14px] font-medium"
+                      >
                         <ImageIcon className="h-4 w-4" strokeWidth={1.9} />
                         Reference later
                       </button>
@@ -990,7 +998,7 @@ export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) 
                 <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-4">
                   <div>
                     <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
-                      Preview
+                      Detail
                     </p>
                     <p className="mt-1 text-[21px] font-semibold tracking-[-0.04em]">
                       {activeAsset?.title ?? "No selection"}
@@ -1091,7 +1099,7 @@ export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) 
                         <h3 className="mb-3 text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
                           Actions
                         </h3>
-                        <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                           <button
                             type="button"
                             onClick={() => setPrompt(activeAsset.prompt)}
@@ -1134,6 +1142,39 @@ export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) 
                               Waiting
                             </button>
                           )}
+                        </div>
+                      </section>
+
+                      <section className="rounded-[24px] border border-[var(--line)] bg-white p-4">
+                        <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                          <SunMedium className="h-4 w-4" strokeWidth={1.9} />
+                          Workspace
+                        </div>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between rounded-[16px] bg-[var(--panel)] px-3 py-3 text-[13px]">
+                            <div>
+                              <p className="font-medium text-[var(--ink)]">Supabase</p>
+                              <p className="mt-1 text-[var(--muted)]">
+                                {hasSupabaseEnv
+                                  ? "History and storage sync are active"
+                                  : "Add env values to enable sync"}
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-[var(--muted)]">
+                              {hasSupabaseEnv ? "ready" : "pending"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-[16px] bg-[var(--panel)] px-3 py-3 text-[13px]">
+                            <div>
+                              <p className="font-medium text-[var(--ink)]">HOLO</p>
+                              <p className="mt-1 text-[var(--muted)]">
+                                Queue submission and polling are connected.
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-[var(--muted)]">
+                              live
+                            </span>
+                          </div>
                         </div>
                       </section>
                     </div>
