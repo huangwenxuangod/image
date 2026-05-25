@@ -2,8 +2,6 @@ import { auth } from "@clerk/nextjs/server";
 import { SignIn } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 
-import { AuthShell } from "@/components/auth/auth-shell";
-
 export default async function SignInPage() {
   const { userId } = await auth();
 
@@ -12,11 +10,7 @@ export default async function SignInPage() {
   }
 
   return (
-    <AuthShell
-      eyebrow="Board access"
-      title="Sign in"
-      description="Clerk handles authentication here. Supabase remains the database and storage layer behind the board workspace."
-    >
+    <main className="flex min-h-screen items-center justify-center bg-[var(--bg)] p-6">
       <SignIn
         routing="path"
         path="/sign-in"
@@ -39,6 +33,6 @@ export default async function SignInPage() {
           },
         }}
       />
-    </AuthShell>
+    </main>
   );
 }

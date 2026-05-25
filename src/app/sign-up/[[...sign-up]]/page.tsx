@@ -2,8 +2,6 @@ import { auth } from "@clerk/nextjs/server";
 import { SignUp } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 
-import { AuthShell } from "@/components/auth/auth-shell";
-
 export default async function SignUpPage() {
   const { userId } = await auth();
 
@@ -12,11 +10,7 @@ export default async function SignUpPage() {
   }
 
   return (
-    <AuthShell
-      eyebrow="Board access"
-      title="Create account"
-      description="Create the first account for this board workspace. Clerk handles registration and session management."
-    >
+    <main className="flex min-h-screen items-center justify-center bg-[var(--bg)] p-6">
       <SignUp
         routing="path"
         path="/sign-up"
@@ -39,6 +33,6 @@ export default async function SignUpPage() {
           },
         }}
       />
-    </AuthShell>
+    </main>
   );
 }
