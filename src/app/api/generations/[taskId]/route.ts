@@ -31,11 +31,20 @@ export async function GET(
       } = await supabase.auth.getUser();
 
       if (user) {
-        await syncPersistedTask(supabase, {
+        const syncResult = await syncPersistedTask(supabase, {
           taskId: task.task_id,
           status: task.status,
           fileExt: task.result?.file_ext,
           error: task.error,
+        });
+
+        return NextResponse.json({
+          ...task,
+          public_file_url:
+            syncResult.signedUrl ??
+            (task.status === "completed"
+              ? getPublicMediaUrl(task.task_id, task.result?.file_ext)
+              : null),
         });
       }
     }

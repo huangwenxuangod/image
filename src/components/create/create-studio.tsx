@@ -4,18 +4,20 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   Bookmark,
+  CheckCheck,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   Download,
   FolderKanban,
-  Grid2x2,
   Heart,
   ImageIcon,
-  LayoutGrid,
   LoaderCircle,
   LogIn,
-  Plus,
+  MoreHorizontal,
   Search,
   Settings2,
+  SlidersHorizontal,
   Sparkles,
   Stars,
   WandSparkles,
@@ -41,7 +43,13 @@ const modelOptions = [
   { id: "nanobanana", label: "nanobanana", note: "Gemini image fallback" },
 ] as const;
 
-type StudioStatus = "idle" | "queued" | "processing" | "completed" | "failed" | "cancelled";
+type StudioStatus =
+  | "idle"
+  | "queued"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "cancelled";
 
 type LiveAsset = {
   id: string;
@@ -73,6 +81,11 @@ type FeedAsset =
     })
   | PersistedFeedAsset
   | LiveAsset;
+
+type CreateStudioProps = {
+  viewerEmail: string | null;
+  persistedFeed: PersistedFeedAsset[];
+};
 
 function artStyle(asset: GenerationAsset) {
   const [first, second, third] = asset.palette;
@@ -149,6 +162,14 @@ function statusLabel(asset: FeedAsset) {
   }
 }
 
+function getAssetImage(asset: FeedAsset) {
+  if (asset.kind !== "mock" && asset.publicFileUrl) {
+    return asset.publicFileUrl;
+  }
+
+  return null;
+}
+
 async function copyText(text: string) {
   try {
     await navigator.clipboard.writeText(text);
@@ -156,11 +177,6 @@ async function copyText(text: string) {
     // Ignore clipboard failures in unsupported environments.
   }
 }
-
-type CreateStudioProps = {
-  viewerEmail: string | null;
-  persistedFeed: PersistedFeedAsset[];
-};
 
 export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) {
   const [feedAssets, setFeedAssets] = useState<FeedAsset[]>(
@@ -176,6 +192,7 @@ export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) 
   const [imageCount, setImageCount] = useState<(typeof countOptions)[number]>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [inspectorOpen, setInspectorOpen] = useState(true);
 
   const activeAsset = useMemo(
     () => feedAssets.find((asset) => asset.id === activeId) ?? feedAssets[0],
@@ -193,6 +210,20 @@ export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) 
         .map((asset) => asset.taskId),
     [feedAssets],
   );
+
+  const activeImageUrl = activeAsset ? getAssetImage(activeAsset) : null;
+  const collectionCount = useMemo(() => {
+    const set = new Set<string>();
+    for (const asset of feedAssets) {
+      if (asset.kind === "mock") {
+        set.add(asset.project);
+      } else if (asset.kind === "persisted" && asset.collectionName) {
+        set.add(asset.collectionName);
+      }
+    }
+
+    return set.size;
+  }, [feedAssets]);
 
   useEffect(() => {
     if (pendingTaskIds.length === 0) {
@@ -340,6 +371,7 @@ export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) 
 
       setFeedAssets((current) => [...nextAssets, ...current]);
       setActiveId(nextAssets[0].id);
+      setInspectorOpen(true);
     } catch (error) {
       setSubmitError(
         error instanceof Error ? error.message : "Failed to submit generation.",
@@ -351,505 +383,792 @@ export function CreateStudio({ viewerEmail, persistedFeed }: CreateStudioProps) 
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.8),_transparent_40%),linear-gradient(180deg,rgba(255,255,255,0.45),transparent_24%)]" />
-      <div className="relative mx-auto flex min-h-screen max-w-[1720px] gap-5 px-4 pb-32 pt-5 md:px-6">
-        <aside className="sticky top-5 hidden h-[calc(100vh-40px)] w-[84px] shrink-0 flex-col justify-between rounded-[28px] border border-[var(--line)] bg-white/75 p-3 shadow-[var(--shadow-soft)] backdrop-blur-xl lg:flex">
-          <div className="space-y-3">
-            <div className="flex h-14 items-center justify-center rounded-[20px] border border-[var(--line-strong)] bg-[var(--panel)]">
-              <span className="font-[var(--font-display)] text-[18px] font-semibold tracking-[-0.03em]">
-                H
-              </span>
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.8),_transparent_40%),linear-gradient(180deg,rgba(255,255,255,0.55),transparent_24%)]" />
+      <div className="relative flex min-h-screen gap-4 p-3 md:p-4">
+        <aside className="hidden w-[320px] shrink-0 rounded-[30px] border border-[var(--line)] bg-[var(--panel-strong)] p-3 shadow-[var(--shadow-soft)] backdrop-blur-2xl xl:flex xl:flex-col">
+          <div className="mb-3 flex items-center justify-between px-2 pt-1">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[var(--ink)] text-[15px] font-semibold text-white">
+                ym
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Workspace
+                </p>
+                <p className="text-[26px] font-semibold tracking-[-0.045em]">
+                  Chaos
+                </p>
+              </div>
             </div>
-            <nav className="space-y-2">
-              {navItems.map(({ label, icon: Icon, active }) => (
-                <button
-                  key={label}
-                  className={cn(
-                    "group flex h-11 w-full items-center justify-center rounded-[14px] border transition duration-200",
-                    active
-                      ? "border-[var(--line-strong)] bg-[var(--panel-strong)] text-[var(--ink)] shadow-[0_8px_24px_rgba(34,36,38,0.06)]"
-                      : "border-transparent bg-transparent text-[var(--muted)] hover:border-[var(--line)] hover:bg-white/70 hover:text-[var(--ink)]",
-                  )}
-                  type="button"
-                  aria-label={label}
-                >
-                  <Icon className="h-[18px] w-[18px]" strokeWidth={1.85} />
-                </button>
-              ))}
-            </nav>
-          </div>
-
-          <div className="space-y-2">
             <button
               type="button"
-              className="flex h-11 w-full items-center justify-center rounded-[14px] border border-transparent text-[var(--muted)] transition hover:border-[var(--line)] hover:bg-white/70 hover:text-[var(--ink)]"
+              className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-[var(--line)] bg-white/80 text-[var(--muted)]"
               aria-label="Notifications"
             >
-              <Bell className="h-[18px] w-[18px]" strokeWidth={1.85} />
+              <Bell className="h-4 w-4" strokeWidth={1.9} />
             </button>
+          </div>
+
+          <div className="mb-3 flex items-center gap-2 rounded-[18px] bg-[var(--panel)] p-1.5">
+            {[
+              { label: "Tasks", active: true },
+              { label: "Files", active: false },
+              { label: "Board", active: false },
+            ].map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                className={cn(
+                  "rounded-[14px] px-4 py-2 text-[14px] font-medium transition",
+                  item.active
+                    ? "bg-white text-[var(--ink)] shadow-[0_6px_18px_rgba(24,26,28,0.06)]"
+                    : "text-[var(--muted)]",
+                )}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="mb-3 flex items-center gap-2 px-1">
+            {navItems.map(({ label, icon: Icon, active }) => (
+              <button
+                key={label}
+                type="button"
+                className={cn(
+                  "flex h-11 flex-1 items-center justify-center rounded-[14px] border transition",
+                  active
+                    ? "border-[var(--line-strong)] bg-white text-[var(--ink)] shadow-[0_6px_18px_rgba(24,26,28,0.05)]"
+                    : "border-transparent bg-transparent text-[var(--muted)] hover:border-[var(--line)] hover:bg-white/72",
+                )}
+                aria-label={label}
+              >
+                <Icon className="h-4 w-4" strokeWidth={1.9} />
+              </button>
+            ))}
+          </div>
+
+          <div className="mb-3 flex items-center gap-2 rounded-[18px] border border-[var(--line)] bg-white/85 px-4 py-3 text-[13px] text-[var(--muted)]">
+            <Search className="h-4 w-4" strokeWidth={1.9} />
+            Search tasks
+          </div>
+
+          <div className="mb-3 flex items-center justify-between px-2">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                Sessions
+              </p>
+              <p className="mt-1 text-[15px] font-medium">
+                {feedAssets.length} records
+              </p>
+            </div>
             <button
               type="button"
-              className="flex h-11 w-full items-center justify-center rounded-[14px] border border-[var(--line)] bg-white/70 text-[var(--ink)]"
-              aria-label="Account"
+              className="inline-flex h-10 items-center gap-2 rounded-[14px] border border-[var(--line)] bg-white/88 px-3 text-[13px] font-medium"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-[12px] bg-[var(--ink)] text-[12px] font-semibold text-white">
-                LM
-              </span>
+              <Sparkles className="h-4 w-4" strokeWidth={1.9} />
+              New
             </button>
+          </div>
+
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+            {feedAssets.map((asset, index) => {
+              const imageUrl = getAssetImage(asset);
+
+              return (
+                <button
+                  key={asset.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveId(asset.id);
+                    setInspectorOpen(true);
+                  }}
+                  className={cn(
+                    "w-full rounded-[20px] border px-3 py-3 text-left transition",
+                    activeId === asset.id
+                      ? "border-[var(--line-strong)] bg-white shadow-[0_14px_32px_rgba(24,26,28,0.06)]"
+                      : "border-transparent bg-transparent hover:border-[var(--line)] hover:bg-white/72",
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[16px] border border-[var(--line)] bg-[var(--panel)]">
+                      {imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={imageUrl}
+                          alt={asset.prompt}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div
+                          className="absolute inset-0"
+                          style={
+                            asset.kind === "mock"
+                              ? artStyle(asset)
+                              : getLiveBackground(index)
+                          }
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="truncate text-[15px] font-medium tracking-[-0.02em]">
+                          {asset.title}
+                        </p>
+                        <span className="rounded-full bg-[var(--panel)] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[var(--muted)]">
+                          {asset.model}
+                        </span>
+                      </div>
+                      <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--muted)]">
+                        {asset.prompt}
+                      </p>
+                      <div className="mt-2 flex items-center justify-between text-[11px] text-[var(--muted)]">
+                        <span>{statusLabel(asset)}</span>
+                        <span>{asset.createdAt}</span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 rounded-[22px] border border-[var(--line)] bg-[var(--panel)] p-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[var(--ink)] text-[13px] font-semibold text-white">
+                LM
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-[14px] font-medium">
+                  {viewerEmail ?? "Sign in to sync"}
+                </p>
+                <p className="text-[12px] text-[var(--muted)]">
+                  {hasSupabaseEnv ? "Supabase sync ready" : "Supabase env missing"}
+                </p>
+              </div>
+            </div>
           </div>
         </aside>
 
-        <main className="grid min-h-[calc(100vh-40px)] flex-1 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-          <section className="rounded-[32px] border border-[var(--line)] bg-white/66 px-4 pb-6 pt-4 shadow-[var(--shadow-soft)] backdrop-blur-xl md:px-5 md:pt-5">
-            <header className="mb-4 flex flex-col gap-4 border-b border-[var(--line)] pb-4 md:mb-5 md:flex-row md:items-end md:justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-[12px] font-medium uppercase tracking-[0.18em] text-[var(--muted)]">
-                  <span className="inline-flex h-6 items-center rounded-full border border-[var(--line)] bg-white/85 px-2.5">
-                    Create
-                  </span>
-                  <span className="inline-flex h-6 items-center rounded-full border border-[var(--line)] bg-[var(--panel)] px-2.5">
-                    Live task flow
-                  </span>
-                </div>
+        <section className="flex min-w-0 flex-1 gap-4">
+          <main className="flex min-w-0 flex-1 flex-col rounded-[32px] border border-[var(--line)] bg-[var(--panel-strong)] shadow-[var(--shadow-soft)] backdrop-blur-2xl">
+            <header className="flex flex-col gap-4 border-b border-[var(--line)] px-5 pb-4 pt-5 md:px-7 md:pt-6">
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                 <div>
-                  <h1 className="font-[var(--font-display)] text-[28px] font-semibold tracking-[-0.04em] md:text-[32px]">
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                    <span className="rounded-full border border-[var(--line)] bg-white/78 px-3 py-1.5">
+                      Create
+                    </span>
+                    <span className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-3 py-1.5">
+                      Live task flow
+                    </span>
+                  </div>
+                  <h1 className="mt-3 text-[34px] font-semibold tracking-[-0.055em] md:text-[40px]">
                     Prompt-first image studio
                   </h1>
-                  <p className="max-w-[62ch] text-[14px] leading-[1.65] text-[var(--muted)] md:text-[15px]">
-                    Built around the common generate-flow used by Midjourney,
-                    Krea, and Leonardo: submit, queue, watch progress, then
-                    keep every result in a single visual stream.
+                  <p className="mt-2 max-w-[72ch] text-[15px] leading-[1.8] text-[var(--muted)]">
+                    Reframed as a calm working session: write a prompt, submit
+                    a run, watch the queue, then inspect and archive each result
+                    without leaving the same canvas.
                   </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <AuthControls viewerEmail={viewerEmail} />
+                  <button
+                    type="button"
+                    onClick={() => setInspectorOpen((current) => !current)}
+                    className="inline-flex h-11 items-center gap-2 rounded-[16px] border border-[var(--line)] bg-white/82 px-4 text-[14px] font-medium"
+                  >
+                    {inspectorOpen ? (
+                      <ChevronRight className="h-4 w-4" strokeWidth={2} />
+                    ) : (
+                      <ChevronLeft className="h-4 w-4" strokeWidth={2} />
+                    )}
+                    {inspectorOpen ? "Hide panel" : "Show panel"}
+                  </button>
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <AuthControls viewerEmail={viewerEmail} />
-                <button className="inline-flex h-10 items-center gap-2 rounded-[14px] border border-[var(--line)] bg-white/80 px-4 text-[14px] font-medium text-[var(--ink)] transition hover:bg-white">
-                  <Search className="h-4 w-4" strokeWidth={1.9} />
-                  Search
-                </button>
-                <button className="inline-flex h-10 items-center gap-2 rounded-[14px] bg-[var(--ink)] px-4 text-[14px] font-medium text-white shadow-[0_10px_30px_rgba(26,28,31,0.12)] transition hover:translate-y-[-1px]">
-                  <Plus className="h-4 w-4" strokeWidth={1.9} />
-                  New Collection
-                </button>
+              <div className="flex flex-wrap items-center gap-2 text-[13px] text-[var(--muted)]">
+                <span className="inline-flex h-10 items-center gap-2 rounded-[16px] border border-[var(--line)] bg-white/78 px-4">
+                  <Bookmark className="h-4 w-4" strokeWidth={1.9} />
+                  {feedAssets.length} records
+                </span>
+                <span className="inline-flex h-10 items-center gap-2 rounded-[16px] border border-[var(--line)] bg-white/78 px-4">
+                  <Stars className="h-4 w-4" strokeWidth={1.9} />
+                  {pendingTaskIds.length} active tasks
+                </span>
+                <span className="inline-flex h-10 items-center gap-2 rounded-[16px] border border-[var(--line)] bg-white/78 px-4">
+                  <Heart className="h-4 w-4" strokeWidth={1.9} />
+                  {collectionCount} collections
+                </span>
               </div>
             </header>
 
-            <div className="mb-5 flex flex-wrap items-center gap-2 text-[13px] text-[var(--muted)]">
-              <span className="inline-flex h-9 items-center gap-2 rounded-[14px] border border-[var(--line)] bg-white/80 px-3">
-                <LayoutGrid className="h-4 w-4" strokeWidth={1.9} />
-                Live feed
-              </span>
-              <span className="inline-flex h-9 items-center gap-2 rounded-[14px] border border-[var(--line)] bg-white/80 px-3">
-                <Bookmark className="h-4 w-4" strokeWidth={1.9} />
-                {feedAssets.length} assets
-              </span>
-              <span className="inline-flex h-9 items-center gap-2 rounded-[14px] border border-[var(--line)] bg-white/80 px-3">
-                <Stars className="h-4 w-4" strokeWidth={1.9} />
-                {pendingTaskIds.length} active tasks
-              </span>
-            </div>
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-5 pt-5 md:px-7">
+                <div className="mx-auto flex w-full max-w-[980px] flex-col gap-5">
+                  <section className="rounded-[28px] border border-[var(--line)] bg-white/88 p-5 shadow-[0_16px_40px_rgba(24,26,28,0.04)]">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[var(--ink)] text-[13px] font-semibold text-white">
+                          ym
+                        </div>
+                        <div>
+                          <p className="text-[15px] font-medium">Creative session</p>
+                          <p className="text-[12px] text-[var(--muted)]">
+                            Left rail for sessions, center for generation flow,
+                            right pane for preview and edits.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="inline-flex h-10 items-center gap-2 rounded-[14px] border border-[var(--line)] bg-[var(--panel)] px-3 text-[13px] font-medium text-[var(--muted)]"
+                      >
+                        <MoreHorizontal className="h-4 w-4" strokeWidth={1.9} />
+                        Session
+                      </button>
+                    </div>
+                  </section>
 
-            {submitError ? (
-              <div className="mb-5 rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-[13px] text-rose-700">
-                {submitError}
+                  {activeAsset ? (
+                    <>
+                      <div className="flex justify-end">
+                        <div className="max-w-[74%] rounded-[24px] rounded-br-[10px] bg-[var(--bubble)] px-5 py-4 text-[15px] leading-[1.75] shadow-[0_10px_24px_rgba(24,26,28,0.03)]">
+                          {activeAsset.prompt}
+                        </div>
+                      </div>
+
+                      <section className="rounded-[30px] border border-[var(--line)] bg-white/90 p-4 shadow-[0_16px_40px_rgba(24,26,28,0.04)] md:p-5">
+                        <div className="flex flex-col gap-4 border-b border-[var(--line)] pb-4 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                              <span className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-2.5 py-1">
+                                Output
+                              </span>
+                              <span className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-2.5 py-1">
+                                {statusLabel(activeAsset)}
+                              </span>
+                            </div>
+                            <h2 className="mt-3 text-[25px] font-semibold tracking-[-0.045em]">
+                              {activeAsset.title}
+                            </h2>
+                            <p className="mt-2 max-w-[58ch] text-[14px] leading-[1.75] text-[var(--muted)]">
+                              The selected result stays in focus here while the
+                              rest of the archive remains reachable from the
+                              sidebar and the recent strip below.
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void copyText(activeAsset.prompt)}
+                              className="inline-flex h-10 items-center gap-2 rounded-[14px] border border-[var(--line)] bg-[var(--panel)] px-4 text-[13px] font-medium"
+                            >
+                              <Copy className="h-4 w-4" strokeWidth={1.9} />
+                              Copy prompt
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPrompt(activeAsset.prompt)}
+                              className="inline-flex h-10 items-center gap-2 rounded-[14px] border border-[var(--line)] bg-[var(--panel)] px-4 text-[13px] font-medium"
+                            >
+                              <WandSparkles className="h-4 w-4" strokeWidth={1.9} />
+                              Use prompt
+                            </button>
+                            {activeImageUrl ? (
+                              <a
+                                href={activeImageUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex h-10 items-center gap-2 rounded-[14px] bg-[var(--ink)] px-4 text-[13px] font-medium text-white"
+                              >
+                                <Download className="h-4 w-4" strokeWidth={1.9} />
+                                Export
+                              </a>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
+                          <div
+                            className={cn(
+                              "relative overflow-hidden rounded-[28px] border border-[var(--line)] bg-[var(--panel)]",
+                              activeAsset.aspectRatio === "16:9"
+                                ? "aspect-[16/10]"
+                                : "aspect-[4/5]",
+                            )}
+                          >
+                            {activeImageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={activeImageUrl}
+                                alt={activeAsset.prompt}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : activeAsset.kind === "mock" ? (
+                              <div
+                                className="absolute inset-0"
+                                style={artStyle(activeAsset)}
+                              />
+                            ) : (
+                              <div
+                                className="absolute inset-0"
+                                style={getLiveBackground(0)}
+                              />
+                            )}
+
+                            {activeAsset.kind === "live" &&
+                            activeAsset.status !== "completed" ? (
+                              <div className="absolute inset-0 flex items-center justify-center bg-[rgba(255,255,255,0.2)] backdrop-blur-md">
+                                <div className="inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/80 px-4 py-2 text-[13px] font-medium">
+                                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                                  {statusLabel(activeAsset)}
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="rounded-[24px] border border-[var(--line)] bg-[var(--panel)] p-4">
+                              <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                                <CheckCheck className="h-4 w-4" strokeWidth={1.9} />
+                                Generation notes
+                              </div>
+                              <p className="text-[14px] leading-[1.8] text-[var(--ink)]">
+                                {activeAsset.kind === "live" &&
+                                activeAsset.status !== "completed"
+                                  ? "This run is still moving through the HOLO queue. Keep the session open or come back later from the left rail."
+                                  : "This result is ready to inspect, reuse, and archive. Use the right pane to copy prompt details or export the final image."}
+                              </p>
+                            </div>
+
+                            <div className="rounded-[24px] border border-[var(--line)] bg-white p-4">
+                              <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                                <SlidersHorizontal className="h-4 w-4" strokeWidth={1.9} />
+                                Session details
+                              </div>
+                              <dl className="space-y-3 text-[13px]">
+                                {[
+                                  ["Model", activeAsset.remoteModel ?? activeAsset.model],
+                                  ["Aspect", activeAsset.aspectRatio],
+                                  ["Status", statusLabel(activeAsset)],
+                                  ["Created", activeAsset.createdAt],
+                                ].map(([label, value]) => (
+                                  <div
+                                    key={label}
+                                    className="flex items-center justify-between gap-3 border-b border-[var(--line)] pb-3 last:border-b-0 last:pb-0"
+                                  >
+                                    <dt className="text-[var(--muted)]">{label}</dt>
+                                    <dd className="text-right font-medium">{value}</dd>
+                                  </div>
+                                ))}
+                              </dl>
+                            </div>
+                          </div>
+                        </div>
+                      </section>
+
+                      <section className="rounded-[30px] border border-[var(--line)] bg-white/90 p-4 shadow-[0_16px_40px_rgba(24,26,28,0.04)] md:p-5">
+                        <div className="mb-4 flex items-center justify-between">
+                          <div>
+                            <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                              Recent outputs
+                            </p>
+                            <h3 className="mt-2 text-[22px] font-semibold tracking-[-0.04em]">
+                              Keep the session in one stream
+                            </h3>
+                          </div>
+                          <button
+                            type="button"
+                            className="inline-flex h-10 items-center gap-2 rounded-[14px] border border-[var(--line)] bg-[var(--panel)] px-4 text-[13px] font-medium"
+                          >
+                            <Search className="h-4 w-4" strokeWidth={1.9} />
+                            Filter
+                          </button>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                          {feedAssets.slice(0, 6).map((asset, index) => {
+                            const imageUrl = getAssetImage(asset);
+
+                            return (
+                              <button
+                                key={asset.id}
+                                type="button"
+                                onClick={() => {
+                                  setActiveId(asset.id);
+                                  setInspectorOpen(true);
+                                }}
+                                className={cn(
+                                  "overflow-hidden rounded-[24px] border bg-[var(--panel)] text-left transition",
+                                  activeId === asset.id
+                                    ? "border-[var(--line-strong)] shadow-[0_12px_30px_rgba(24,26,28,0.05)]"
+                                    : "border-[var(--line)] hover:-translate-y-0.5 hover:shadow-[0_14px_32px_rgba(24,26,28,0.06)]",
+                                )}
+                              >
+                                <div
+                                  className={cn(
+                                    "relative overflow-hidden",
+                                    asset.aspectRatio === "16:9"
+                                      ? "aspect-[16/10]"
+                                      : "aspect-[4/5]",
+                                  )}
+                                >
+                                  {imageUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      src={imageUrl}
+                                      alt={asset.prompt}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div
+                                      className="absolute inset-0"
+                                      style={
+                                        asset.kind === "mock"
+                                          ? artStyle(asset)
+                                          : getLiveBackground(index)
+                                      }
+                                    />
+                                  )}
+                                  <div className="absolute left-3 top-3 rounded-full border border-white/35 bg-white/18 px-2.5 py-1 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur-md">
+                                    {asset.model}
+                                  </div>
+                                </div>
+                                <div className="space-y-2 px-4 pb-4 pt-3">
+                                  <p className="text-[16px] font-medium tracking-[-0.02em]">
+                                    {asset.title}
+                                  </p>
+                                  <p className="line-clamp-2 text-[13px] leading-5 text-[var(--muted)]">
+                                    {asset.prompt}
+                                  </p>
+                                  <div className="flex items-center justify-between text-[11px] text-[var(--muted)]">
+                                    <span>{statusLabel(asset)}</span>
+                                    <span>{asset.createdAt}</span>
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    </>
+                  ) : null}
+                </div>
               </div>
-            ) : null}
 
-            <div className="columns-1 gap-4 md:columns-2 2xl:columns-3">
-              {feedAssets.map((asset, index) => {
-                const isLive = asset.kind === "live";
-                const completedImage = isLive ? asset.publicFileUrl : null;
-                const usesWideFrame = asset.aspectRatio === "16:9";
+              <div className="border-t border-[var(--line)] px-3 pb-3 pt-3 md:px-6 md:pb-5">
+                <div className="mx-auto w-full max-w-[980px] rounded-[32px] border border-[var(--line)] bg-white/94 p-4 shadow-[var(--shadow-float)]">
+                  <textarea
+                    className="min-h-[126px] w-full resize-none rounded-[24px] border border-transparent bg-[var(--panel)] px-5 py-4 text-[15px] leading-[1.8] outline-none placeholder:text-[var(--muted)] focus:border-[var(--line-strong)]"
+                    value={prompt}
+                    onChange={(event) => setPrompt(event.target.value)}
+                    placeholder="Describe the image you want to generate..."
+                  />
 
-                return (
-                  <article
-                    key={asset.id}
-                    className={cn(
-                      "group mb-4 break-inside-avoid overflow-hidden rounded-[22px] border bg-white/75 transition duration-200",
-                      activeId === asset.id
-                        ? "border-[var(--line-strong)] shadow-[0_16px_40px_rgba(26,28,31,0.08)]"
-                        : "border-transparent hover:-translate-y-0.5 hover:border-[var(--line)] hover:shadow-[0_14px_36px_rgba(26,28,31,0.08)]",
-                    )}
+                  <div className="mt-3 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+                    <div className="flex flex-1 flex-wrap items-center gap-2">
+                      <div className="inline-flex rounded-[16px] border border-[var(--line)] bg-[var(--panel)] p-1">
+                        {modelOptions.map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setModel(option.id)}
+                            className={cn(
+                              "rounded-[12px] px-4 py-2.5 text-[14px] font-medium transition",
+                              model === option.id
+                                ? "bg-white text-[var(--ink)] shadow-[0_6px_16px_rgba(26,28,31,0.08)]"
+                                : "text-[var(--muted)]",
+                            )}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="inline-flex rounded-[16px] border border-[var(--line)] bg-[var(--panel)] p-1">
+                        {aspectOptions.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => setAspectRatio(option)}
+                            className={cn(
+                              "rounded-[12px] px-4 py-2.5 text-[14px] font-medium transition",
+                              aspectRatio === option
+                                ? "bg-white text-[var(--ink)] shadow-[0_6px_16px_rgba(26,28,31,0.08)]"
+                                : "text-[var(--muted)]",
+                            )}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="inline-flex rounded-[16px] border border-[var(--line)] bg-[var(--panel)] p-1">
+                        {countOptions.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => setImageCount(option)}
+                            className={cn(
+                              "rounded-[12px] px-4 py-2.5 text-[14px] font-medium transition",
+                              imageCount === option
+                                ? "bg-white text-[var(--ink)] shadow-[0_6px_16px_rgba(26,28,31,0.08)]"
+                                : "text-[var(--muted)]",
+                            )}
+                          >
+                            {option} img
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex h-11 items-center gap-2 rounded-[16px] border border-[var(--line)] bg-white/88 px-4 text-[14px] font-medium"
+                      >
+                        <ImageIcon className="h-4 w-4" strokeWidth={1.9} />
+                        Reference later
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleGenerate()}
+                        disabled={isSubmitting}
+                        className="inline-flex h-11 items-center gap-2 rounded-[16px] bg-[var(--ink)] px-5 text-[14px] font-medium text-white shadow-[0_14px_28px_rgba(26,28,31,0.14)] transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        {isSubmitting ? (
+                          <LoaderCircle
+                            className="h-4 w-4 animate-spin"
+                            strokeWidth={1.9}
+                          />
+                        ) : (
+                          <WandSparkles className="h-4 w-4" strokeWidth={1.9} />
+                        )}
+                        Generate
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-col gap-2 text-[12px] text-[var(--muted)] md:flex-row md:items-center md:justify-between">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex h-7 items-center rounded-full border border-[var(--line)] bg-white px-2.5">
+                        {modelOptions.find((option) => option.id === model)?.note}
+                      </span>
+                      <span className="inline-flex h-7 items-center rounded-full border border-[var(--line)] bg-white px-2.5">
+                        HOLO queue API
+                      </span>
+                    </div>
+                    <p>
+                      One HOLO request generates one image, so multi-image runs
+                      submit parallel tasks.
+                    </p>
+                  </div>
+
+                  {submitError ? (
+                    <div className="mt-3 rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-[13px] text-rose-700">
+                      {submitError}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </main>
+
+          <aside
+            className={cn(
+              "hidden shrink-0 overflow-hidden rounded-[32px] border border-[var(--line)] bg-[var(--panel-strong)] shadow-[var(--shadow-soft)] backdrop-blur-2xl xl:flex xl:flex-col",
+              inspectorOpen ? "w-[390px]" : "w-[72px]",
+            )}
+          >
+            {inspectorOpen ? (
+              <>
+                <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-4">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                      Preview
+                    </p>
+                    <p className="mt-1 text-[21px] font-semibold tracking-[-0.04em]">
+                      {activeAsset?.title ?? "No selection"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setInspectorOpen(false)}
+                    className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-[var(--line)] bg-white/86 text-[var(--muted)]"
+                    aria-label="Close preview"
                   >
-                    <button
-                      type="button"
-                      className="block w-full text-left"
-                      onClick={() => setActiveId(asset.id)}
-                    >
+                    <ChevronRight className="h-4 w-4" strokeWidth={2} />
+                  </button>
+                </div>
+
+                {activeAsset ? (
+                  <div className="min-h-0 flex-1 overflow-y-auto p-5">
+                    <div className="space-y-4">
                       <div
                         className={cn(
-                          "relative isolate overflow-hidden bg-[var(--panel)]",
-                          usesWideFrame ? "aspect-[16/10]" : "aspect-[4/5]",
+                          "relative overflow-hidden rounded-[28px] border border-[var(--line)] bg-[var(--panel)]",
+                          activeAsset.aspectRatio === "16:9"
+                            ? "aspect-[16/10]"
+                            : "aspect-[4/5]",
                         )}
                       >
-                        {completedImage ? (
+                        {activeImageUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={completedImage}
-                            alt={asset.prompt}
-                            className="absolute inset-0 h-full w-full object-cover"
+                            src={activeImageUrl}
+                            alt={activeAsset.prompt}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : activeAsset.kind === "mock" ? (
+                          <div
+                            className="absolute inset-0"
+                            style={artStyle(activeAsset)}
                           />
                         ) : (
                           <div
                             className="absolute inset-0"
-                            style={
-                              asset.kind === "mock"
-                                ? artStyle(asset)
-                                : getLiveBackground(index)
-                            }
+                            style={getLiveBackground(0)}
                           />
                         )}
-                        <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent,rgba(28,32,36,0.24))]" />
-                        <div className="absolute left-3 top-3 inline-flex items-center rounded-full border border-white/35 bg-white/18 px-2.5 py-1 text-[11px] font-medium tracking-[0.08em] text-white/92 uppercase backdrop-blur-md">
-                          {asset.model}
+                      </div>
+
+                      <section className="rounded-[24px] border border-[var(--line)] bg-[var(--panel)] p-4">
+                        <div className="mb-3 flex items-center justify-between">
+                          <h3 className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                            Prompt
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={() => void copyText(activeAsset.prompt)}
+                            className="inline-flex h-9 items-center gap-2 rounded-[14px] border border-[var(--line)] bg-white px-3 text-[12px] font-medium"
+                          >
+                            <Copy className="h-3.5 w-3.5" strokeWidth={1.9} />
+                            Copy
+                          </button>
                         </div>
-                        <div className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/18 px-2.5 py-1 text-[11px] font-medium tracking-[0.06em] text-white backdrop-blur-md">
-                          {isLive && asset.status !== "completed" ? (
-                            <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                          ) : null}
-                          {statusLabel(asset)}
-                        </div>
-                        <div className="absolute right-3 top-3 flex gap-2 opacity-0 transition duration-200 group-hover:opacity-100">
-                          {[Download, Copy, Heart].map((Icon, iconIndex) => (
-                            <span
-                              key={`${asset.id}-${iconIndex}`}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] border border-white/30 bg-white/72 text-[var(--ink)] shadow-[0_10px_20px_rgba(26,28,31,0.08)] backdrop-blur-md"
+                        <p className="text-[14px] leading-[1.8]">
+                          {activeAsset.prompt}
+                        </p>
+                      </section>
+
+                      <section className="rounded-[24px] border border-[var(--line)] bg-white p-4">
+                        <h3 className="mb-3 text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                          Details
+                        </h3>
+                        <dl className="space-y-3 text-[13px]">
+                          {[
+                            ["Provider", activeAsset.model],
+                            ["Remote model", activeAsset.remoteModel ?? "pending"],
+                            ["Aspect", activeAsset.aspectRatio],
+                            ["Status", statusLabel(activeAsset)],
+                            ["Created", activeAsset.createdAt],
+                            [
+                              "Storage",
+                              activeAsset.kind !== "mock" && activeAsset.publicFileUrl
+                                ? "synced"
+                                : "remote preview",
+                            ],
+                          ].map(([label, value]) => (
+                            <div
+                              key={label}
+                              className="flex items-center justify-between gap-3 border-b border-[var(--line)] pb-3 last:border-b-0 last:pb-0"
                             >
-                              <Icon className="h-4 w-4" strokeWidth={1.9} />
-                            </span>
+                              <dt className="text-[var(--muted)]">{label}</dt>
+                              <dd className="max-w-[56%] text-right font-medium">
+                                {value}
+                              </dd>
+                            </div>
                           ))}
-                        </div>
-                      </div>
+                        </dl>
+                      </section>
 
-                      <div className="space-y-3 px-3 pb-4 pt-3">
-                        <div className="space-y-1">
-                          <p className="font-[var(--font-display)] text-[16px] font-semibold tracking-[-0.03em]">
-                            {asset.title}
-                          </p>
-                          <p className="line-clamp-2 text-[13px] leading-5 text-[var(--muted)]">
-                            {asset.prompt}
-                          </p>
+                      <section className="rounded-[24px] border border-[var(--line)] bg-white p-4">
+                        <h3 className="mb-3 text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                          Actions
+                        </h3>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setPrompt(activeAsset.prompt)}
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-[16px] border border-[var(--line)] bg-[var(--panel)] text-[13px] font-medium"
+                          >
+                            <WandSparkles className="h-4 w-4" strokeWidth={1.9} />
+                            Reuse
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void copyText(activeAsset.prompt)}
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-[16px] border border-[var(--line)] bg-[var(--panel)] text-[13px] font-medium"
+                          >
+                            <Copy className="h-4 w-4" strokeWidth={1.9} />
+                            Copy
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-[16px] border border-[var(--line)] bg-[var(--panel)] text-[13px] font-medium"
+                          >
+                            <Heart className="h-4 w-4" strokeWidth={1.9} />
+                            Favorite
+                          </button>
+                          {activeImageUrl ? (
+                            <a
+                              href={activeImageUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex h-11 items-center justify-center gap-2 rounded-[16px] bg-[var(--ink)] text-[13px] font-medium text-white"
+                            >
+                              <Download className="h-4 w-4" strokeWidth={1.9} />
+                              Export
+                            </a>
+                          ) : (
+                            <button
+                              type="button"
+                              className="inline-flex h-11 items-center justify-center gap-2 rounded-[16px] bg-[var(--ink)] text-[13px] font-medium text-white"
+                            >
+                              <LoaderCircle className="h-4 w-4 animate-spin" strokeWidth={1.9} />
+                              Waiting
+                            </button>
+                          )}
                         </div>
-
-                        <div className="flex items-center justify-between text-[12px] text-[var(--muted)]">
-                          <span>
-                            {asset.kind === "mock"
-                              ? asset.project
-                              : asset.kind === "persisted"
-                                ? asset.collectionName ?? asset.remoteModel ?? "library"
-                                : asset.remoteModel ?? "submitted"}
-                          </span>
-                          <span>{asset.createdAt}</span>
-                        </div>
-                      </div>
-                    </button>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-
-          <aside className="sticky top-5 hidden h-[calc(100vh-40px)] overflow-hidden rounded-[32px] border border-[var(--line)] bg-white/78 shadow-[var(--shadow-soft)] backdrop-blur-xl xl:flex xl:flex-col">
-            <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-4">
-              <div>
-                <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-[var(--muted)]">
-                  Detail
-                </p>
-                <h2 className="mt-1 font-[var(--font-display)] text-[18px] font-semibold tracking-[-0.03em]">
-                  {activeAsset?.title ?? "No selection"}
-                </h2>
-              </div>
-              {activeAsset?.kind === "live" && activeAsset.publicFileUrl ? (
-                <a
-                  className="inline-flex h-9 items-center gap-2 rounded-[14px] border border-[var(--line)] bg-white/82 px-3 text-[13px] font-medium"
-                  href={activeAsset.publicFileUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <Download className="h-4 w-4" strokeWidth={1.9} />
-                  Export
-                </a>
-              ) : (
-                <button className="inline-flex h-9 items-center gap-2 rounded-[14px] border border-[var(--line)] bg-white/82 px-3 text-[13px] font-medium">
-                  <Download className="h-4 w-4" strokeWidth={1.9} />
-                  Export
-                </button>
-              )}
-            </div>
-
-            {activeAsset ? (
-              <div className="flex-1 overflow-y-auto p-5">
-                <div className="space-y-5">
-                  <div
-                    className={cn(
-                      "relative overflow-hidden rounded-[24px] border border-[var(--line)] bg-[var(--panel)]",
-                      activeAsset.aspectRatio === "16:9" ? "aspect-[16/10]" : "aspect-[4/5]",
-                    )}
-                  >
-                    {activeAsset.kind === "live" && activeAsset.publicFileUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={activeAsset.publicFileUrl}
-                        alt={activeAsset.prompt}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : activeAsset.kind === "mock" ? (
-                      <div className="absolute inset-0" style={artStyle(activeAsset)} />
-                    ) : (
-                      <div className="absolute inset-0" style={getLiveBackground(0)} />
-                    )}
-                    {activeAsset.kind === "live" && activeAsset.status !== "completed" ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-[rgba(255,255,255,0.18)] backdrop-blur-md">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/70 px-4 py-2 text-[13px] font-medium text-[var(--ink)]">
-                          <LoaderCircle className="h-4 w-4 animate-spin" />
-                          {statusLabel(activeAsset)}
-                        </div>
-                      </div>
-                    ) : null}
+                      </section>
+                    </div>
                   </div>
-
-                  <section className="rounded-[20px] border border-[var(--line)] bg-[var(--panel)] p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-[12px] font-medium uppercase tracking-[0.16em] text-[var(--muted)]">
-                        Prompt
-                      </h3>
-                      <button
-                        className="inline-flex h-8 items-center gap-2 rounded-[12px] border border-[var(--line)] bg-white/82 px-3 text-[12px] font-medium"
-                        type="button"
-                        onClick={() => void copyText(activeAsset.prompt)}
-                      >
-                        <Copy className="h-3.5 w-3.5" strokeWidth={1.9} />
-                        Copy
-                      </button>
-                    </div>
-                    <p className="text-[14px] leading-[1.7] text-[var(--ink)]">
-                      {activeAsset.prompt}
-                    </p>
-                  </section>
-
-                  <section className="rounded-[20px] border border-[var(--line)] bg-white/82 p-4">
-                    <h3 className="mb-3 text-[12px] font-medium uppercase tracking-[0.16em] text-[var(--muted)]">
-                      Meta
-                    </h3>
-                    <dl className="space-y-3 text-[13px]">
-                      {[
-                        ["Model", activeAsset.kind === "live" ? activeAsset.remoteModel ?? activeAsset.model : activeAsset.remoteModel ?? activeAsset.model],
-                        ["Aspect", activeAsset.aspectRatio],
-                        ["Status", statusLabel(activeAsset)],
-                        [
-                          "Source",
-                          activeAsset.kind === "mock"
-                            ? activeAsset.project
-                            : activeAsset.kind === "persisted"
-                              ? activeAsset.collectionName ?? activeAsset.taskId
-                              : activeAsset.taskId,
-                        ],
-                        ["Created", activeAsset.createdAt],
-                      ].map(([label, value]) => (
-                        <div
-                          key={label}
-                          className="flex items-center justify-between gap-4 border-b border-[var(--line)] pb-3 last:border-b-0 last:pb-0"
-                        >
-                          <dt className="text-[var(--muted)]">{label}</dt>
-                          <dd className="max-w-[58%] text-right font-medium text-[var(--ink)]">
-                            {value}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </section>
-
-                  <section className="rounded-[20px] border border-[var(--line)] bg-white/82 p-4">
-                    <h3 className="mb-3 text-[12px] font-medium uppercase tracking-[0.16em] text-[var(--muted)]">
-                      Actions
-                    </h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { label: "Generate Again", icon: WandSparkles, primary: true },
-                        { label: "Favorite", icon: Heart },
-                        { label: "Use Prompt", icon: Copy },
-                        { label: "Download", icon: Download },
-                      ].map(({ label, icon: Icon, primary }) => (
-                        <button
-                          key={label}
-                          className={cn(
-                            "inline-flex h-11 items-center justify-center gap-2 rounded-[14px] border text-[13px] font-medium transition",
-                            primary
-                              ? "border-[var(--ink)] bg-[var(--ink)] text-white shadow-[0_12px_24px_rgba(26,28,31,0.12)]"
-                              : "border-[var(--line)] bg-[var(--panel)] text-[var(--ink)] hover:bg-white",
-                          )}
-                          onClick={() => {
-                            if (label === "Use Prompt") {
-                              setPrompt(activeAsset.prompt);
-                            }
-                          }}
-                          type="button"
-                        >
-                          <Icon className="h-4 w-4" strokeWidth={1.9} />
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-
-                  <section className="rounded-[20px] border border-[var(--line)] bg-white/82 p-4">
-                    <div className="mb-3 flex items-center gap-2">
-                      <Grid2x2 className="h-4 w-4 text-[var(--muted)]" strokeWidth={1.9} />
-                      <h3 className="text-[12px] font-medium uppercase tracking-[0.16em] text-[var(--muted)]">
-                        Environment
-                      </h3>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between rounded-[16px] border border-[var(--line)] bg-[var(--panel)] px-3 py-3 text-[13px]">
-                        <div>
-                          <p className="font-medium text-[var(--ink)]">Supabase</p>
-                          <p className="mt-1 text-[var(--muted)]">
-                            {hasSupabaseEnv
-                              ? "Publishable key detected"
-                              : "Add env values to enable auth and history sync"}
-                          </p>
-                        </div>
-                        <span
-                          className={cn(
-                            "rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em]",
-                            hasSupabaseEnv
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-amber-100 text-amber-700",
-                          )}
-                        >
-                          {hasSupabaseEnv ? "Ready" : "Pending"}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between rounded-[16px] border border-[var(--line)] bg-[var(--panel)] px-3 py-3 text-[13px]">
-                        <div>
-                          <p className="font-medium text-[var(--ink)]">HOLO API</p>
-                          <p className="mt-1 text-[var(--muted)]">
-                            Route handler wired for queued image generation tasks.
-                          </p>
-                        </div>
-                        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
-                          Ready
-                        </span>
-                      </div>
-                    </div>
-                  </section>
+                ) : null}
+              </>
+            ) : (
+              <div className="flex h-full flex-col items-center justify-between p-3">
+                <button
+                  type="button"
+                  onClick={() => setInspectorOpen(true)}
+                  className="mt-1 flex h-10 w-10 items-center justify-center rounded-[14px] border border-[var(--line)] bg-white/86 text-[var(--muted)]"
+                  aria-label="Open preview"
+                >
+                  <ChevronLeft className="h-4 w-4" strokeWidth={2} />
+                </button>
+                <div className="space-y-2">
+                  {[Download, Copy, Heart].map((Icon, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-[var(--line)] bg-white/86 text-[var(--muted)]"
+                    >
+                      <Icon className="h-4 w-4" strokeWidth={1.9} />
+                    </button>
+                  ))}
                 </div>
               </div>
-            ) : null}
+            )}
           </aside>
-        </main>
+        </section>
 
-        <div className="pointer-events-none fixed inset-x-0 bottom-5 z-30 flex justify-center px-4 md:px-6">
-          <div className="pointer-events-auto w-full max-w-[980px] rounded-[28px] border border-[var(--line)] bg-white/86 p-4 shadow-[var(--shadow-float)] backdrop-blur-2xl">
-            <textarea
-              className="min-h-[112px] w-full resize-none rounded-[22px] border border-transparent bg-[var(--panel)] px-5 py-4 font-[var(--font-sans)] text-[15px] leading-6 text-[var(--ink)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--line-strong)]"
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              placeholder="Describe the image you want to generate..."
-            />
-
-            <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="inline-flex rounded-[14px] border border-[var(--line)] bg-[var(--panel)] p-1">
-                  {modelOptions.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setModel(option.id)}
-                      className={cn(
-                        "rounded-[10px] px-3 py-2 text-[13px] font-medium transition",
-                        model === option.id
-                          ? "bg-white text-[var(--ink)] shadow-[0_6px_16px_rgba(26,28,31,0.08)]"
-                          : "text-[var(--muted)]",
-                      )}
-                    >
-                      <span>{option.label}</span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="inline-flex rounded-[14px] border border-[var(--line)] bg-[var(--panel)] p-1">
-                  {aspectOptions.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => setAspectRatio(option)}
-                      className={cn(
-                        "rounded-[10px] px-3 py-2 text-[13px] font-medium transition",
-                        aspectRatio === option
-                          ? "bg-white text-[var(--ink)] shadow-[0_6px_16px_rgba(26,28,31,0.08)]"
-                          : "text-[var(--muted)]",
-                      )}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="inline-flex rounded-[14px] border border-[var(--line)] bg-[var(--panel)] p-1">
-                  {countOptions.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => setImageCount(option)}
-                      className={cn(
-                        "rounded-[10px] px-3 py-2 text-[13px] font-medium transition",
-                        imageCount === option
-                          ? "bg-white text-[var(--ink)] shadow-[0_6px_16px_rgba(26,28,31,0.08)]"
-                          : "text-[var(--muted)]",
-                      )}
-                    >
-                      {option} img
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  className="inline-flex h-11 items-center gap-2 rounded-[14px] border border-[var(--line)] bg-white/82 px-4 text-[14px] font-medium text-[var(--ink)]"
-                >
-                  <ImageIcon className="h-4 w-4" strokeWidth={1.9} />
-                  Reference later
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleGenerate()}
-                  disabled={isSubmitting}
-                  className="inline-flex h-11 items-center gap-2 rounded-[14px] bg-[var(--ink)] px-5 text-[14px] font-medium text-white shadow-[0_14px_28px_rgba(26,28,31,0.14)] transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {isSubmitting ? (
-                    <LoaderCircle className="h-4 w-4 animate-spin" strokeWidth={1.9} />
-                  ) : (
-                    <WandSparkles className="h-4 w-4" strokeWidth={1.9} />
-                  )}
-                  Generate
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-[12px] text-[var(--muted)]">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex h-7 items-center rounded-full border border-[var(--line)] bg-white/82 px-2.5">
-                  {modelOptions.find((option) => option.id === model)?.note}
-                </span>
-                <span className="inline-flex h-7 items-center rounded-full border border-[var(--line)] bg-white/82 px-2.5">
-                  HOLO queue API
-                </span>
-              </div>
-              <p>One HOLO request generates one image, so multi-image runs submit parallel tasks.</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="fixed bottom-6 left-4 right-4 z-20 flex items-center justify-between rounded-[20px] border border-[var(--line)] bg-white/90 px-4 py-3 shadow-[var(--shadow-soft)] backdrop-blur-xl lg:hidden">
+        <div className="fixed bottom-4 left-4 right-4 z-20 flex items-center justify-between rounded-[22px] border border-[var(--line)] bg-white/92 px-4 py-3 shadow-[var(--shadow-soft)] backdrop-blur-xl xl:hidden">
           <div>
-            <p className="font-[var(--font-display)] text-[15px] font-semibold">
-              Create
-            </p>
+            <p className="text-[15px] font-semibold">Create</p>
             <p className="text-[12px] text-[var(--muted)]">
               {pendingTaskIds.length > 0
                 ? `${pendingTaskIds.length} tasks active`

@@ -55,13 +55,21 @@ Set these environment variables in Vercel:
 
 The project is Bun-compatible and already includes `bun.lock`, so Vercel can use Bun directly.
 
+## Supabase Storage
+
+To persist generated images beyond HOLO's temporary 24-hour file window, run the storage migration:
+
+- [supabase/migrations/20260525_000002_create_generated_images_bucket.sql](./supabase/migrations/20260525_000002_create_generated_images_bucket.sql)
+
+This creates a private bucket named `generated-images` and owner-scoped storage policies.
+
 ## Current scope
 
 - YouMind-style `Create` workspace shell
 - Sidebar, masonry-style asset feed, persistent composer, detail panel
 - Supabase browser/server client helpers
 - Proxy hook for auth session refresh
-- Real HOLO image submission route at `/api/generate-image`
+- Real HOLO image submission routes at `/api/generations` and `/api/generations/[taskId]`
 - Email magic-link sign-in and auth callback flow
 - Draft SQL schema in `supabase/migrations/`
 

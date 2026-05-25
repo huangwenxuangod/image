@@ -1,10 +1,16 @@
 import { getPublicMediaUrl } from "@/lib/holo/client";
 import type { StudioAspectRatio, StudioProvider } from "@/lib/holo/models";
 import { formatFeedTimestamp, type PersistedFeedAsset } from "@/lib/studio/feed";
+import {
+  createSignedStorageUrl,
+  createSignedStorageUrls,
+  type SupabaseStorageLike,
+  uploadRemoteImageToStorage,
+} from "@/lib/supabase/storage";
 
 type SupabaseLike = {
   from: (table: string) => unknown;
-};
+} & SupabaseStorageLike;
 
 type InsertGenerationInput = {
   userId: string;
@@ -79,7 +85,7 @@ export async function syncPersistedTask(
     fileExt?: string;
     error?: string;
   },
-) {
+): Promise<{ signedUrl: string | null }> {
   const generationImagesTable = supabase.from("generation_images") as {
     update: (value: Record<string, unknown>) => {
       eq: (column: string, value: string) => Promise<{ error: { message: string } | null }>;
@@ -94,15 +100,48 @@ export async function syncPersistedTask(
     };
   };
 
-  const sourceUrl =
+  const imageRecord = await generationImagesTable
+    .select("generation_id, user_id, storage_path, source_url")
+    .eq("holo_task_id", input.taskId)
+    .maybeSingle();
+
+  if (imageRecord.error || !imageRecord.data?.generation_id) {
+    return { signedUrl: null as string | null };
+  }
+
+  const generationId = String(imageRecord.data.generation_id);
+  const userId = String(imageRecord.data.user_id);
+  const existingStoragePath =
+    (imageRecord.data.storage_path as string | null | undefined) ?? null;
+  const upstreamUrl =
     input.status === "completed" ? getPublicMediaUrl(input.taskId, input.fileExt) : null;
+
+  let nextStoragePath = existingStoragePath;
+  let latestError = input.error ?? null;
+
+  if (input.status === "completed" && upstreamUrl && !existingStoragePath) {
+    try {
+      nextStoragePath = await uploadRemoteImageToStorage(supabase, {
+        userId,
+        generationId,
+        taskId: input.taskId,
+        fileExt: input.fileExt,
+        remoteUrl: upstreamUrl,
+      });
+    } catch (error) {
+      latestError = `Storage sync failed: ${
+        error instanceof Error ? error.message : "unknown upload error"
+      }`;
+    }
+  }
 
   const updateImage = await generationImagesTable
     .update({
       status: input.status,
-      source_url: sourceUrl,
+      source_url: upstreamUrl,
+      storage_path: nextStoragePath,
       file_ext: input.fileExt ?? null,
-      latest_error: input.error ?? null,
+      latest_error: latestError,
       updated_at: new Date().toISOString(),
     })
     .eq("holo_task_id", input.taskId);
@@ -111,16 +150,6 @@ export async function syncPersistedTask(
     throw new Error(updateImage.error.message);
   }
 
-  const imageRecord = await generationImagesTable
-    .select("generation_id")
-    .eq("holo_task_id", input.taskId)
-    .maybeSingle();
-
-  if (imageRecord.error || !imageRecord.data?.generation_id) {
-    return;
-  }
-
-  const generationId = String(imageRecord.data.generation_id);
   const siblingRows = await (supabase.from("generation_images") as {
     select: (columns: string) => {
       eq: (column: string, value: string) => Promise<{
@@ -137,7 +166,7 @@ export async function syncPersistedTask(
   }
 
   if (!("data" in siblingRows) || !Array.isArray(siblingRows.data)) {
-    return;
+    return { signedUrl: null };
   }
 
   const statuses = siblingRows.data.map((row) => String(row.status));
@@ -168,6 +197,13 @@ export async function syncPersistedTask(
   if (updateGeneration.error) {
     throw new Error(updateGeneration.error.message);
   }
+
+  const signedUrl =
+    input.status === "completed" && nextStoragePath
+      ? await createSignedStorageUrl(supabase, nextStoragePath)
+      : null;
+
+  return { signedUrl };
 }
 
 export async function fetchRecentFeed(
@@ -192,6 +228,11 @@ export async function fetchRecentFeed(
   if (result.error || !result.data) {
     return [] satisfies PersistedFeedAsset[];
   }
+
+  const storagePaths = result.data
+    .map((row) => (row.storage_path as string | null | undefined) ?? null)
+    .filter((path): path is string => Boolean(path));
+  const signedUrls = await createSignedStorageUrls(supabase, storagePaths);
 
   const mappedRows: Array<PersistedFeedAsset | null> = result.data.map((row, index) => {
       const generation = row.generations as
@@ -219,7 +260,9 @@ export async function fetchRecentFeed(
         createdAt: formatFeedTimestamp(String(row.created_at)),
         status: String(row.status) as PersistedFeedAsset["status"],
         remoteModel: generation.remote_model,
-        publicFileUrl: (row.source_url as string | null | undefined) ?? null,
+        publicFileUrl:
+          signedUrls.get((row.storage_path as string | null | undefined) ?? "") ??
+          ((row.source_url as string | null | undefined) ?? null),
         fileExt: (row.file_ext as string | null | undefined) ?? null,
         error: (row.latest_error as string | null | undefined) ?? null,
         collectionName: collection?.name ?? null,
