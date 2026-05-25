@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowRight, LoaderCircle, Mail, MoreHorizontal, Sparkles } from "lucide-react";
+import { ArrowRight, LoaderCircle, Mail, MoreHorizontal } from "lucide-react";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
@@ -113,101 +113,28 @@ export function AuthScreen() {
       <section className="relative hidden overflow-hidden lg:block">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.84),_transparent_34%),linear-gradient(180deg,#f8f5ef_0%,#f2ede6_100%)]" />
         <div className="relative flex h-full items-center justify-center p-8">
-          <div className="grid h-[780px] w-full max-w-[980px] grid-cols-[290px_minmax(0,1fr)_340px] overflow-hidden rounded-[38px] border border-[var(--line)] bg-white/74 shadow-[var(--shadow-float)]">
-            <div className="border-r border-[var(--line)] bg-[rgba(248,245,240,0.9)] p-4">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="text-[32px] font-semibold tracking-[-0.08em]">un</div>
-                <div className="rounded-[14px] border border-[var(--line)] bg-white px-3 py-2 text-[13px] text-[var(--muted)]">
-                  Chaos
-                </div>
-              </div>
-              <div className="space-y-2">
-                {[
-                  "Editorial still life session",
-                  "Nano banana tests",
-                  "Summer campaign references",
-                  "Magazine cover prompts",
-                ].map((item, index) => (
-                  <div
-                    key={item}
-                    className={`rounded-[16px] px-3 py-3 text-[14px] ${
-                      index === 1 ? "bg-[rgba(93,120,174,0.1)]" : "bg-transparent"
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <CheckIcon />
-                      <div>
-                        <p className="font-medium">{item}</p>
-                        <p className="mt-1 text-[12px] text-[var(--muted)]">
-                          Chat-native generation thread
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          <div className="w-full max-w-[1120px]">
+            <div className="overflow-hidden rounded-[38px] border border-[var(--line)] bg-white/74 shadow-[var(--shadow-float)]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/concepts/board-concept.png"
+                alt="Concept image of the board chat workspace"
+                className="block h-auto w-full"
+              />
             </div>
-
-            <div className="flex flex-col justify-between bg-[rgba(255,255,255,0.68)] p-8">
-              <div className="space-y-6">
-                <div className="max-w-[78%] rounded-[24px] bg-[var(--bubble)] px-5 py-4 text-[15px] leading-[1.8] shadow-[0_10px_24px_rgba(24,26,28,0.03)]">
-                  A tactile editorial still life with citrus slices and chalky
-                  ceramic vessels, styled like a luxury magazine spread.
-                </div>
-                <div className="max-w-[88%] rounded-[28px] border border-[var(--line)] bg-white px-5 py-5 shadow-[0_12px_28px_rgba(24,26,28,0.03)]">
-                  <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--panel)] px-3 py-1.5 text-[13px] font-medium">
-                    <Sparkles className="h-4 w-4" strokeWidth={1.9} />
-                    产出
-                  </div>
-                  <div className="aspect-[4/3] overflow-hidden rounded-[22px] border border-[var(--line)] bg-[linear-gradient(145deg,#d4c79b_0%,#f4efe0_44%,#8f7f64_100%)]" />
-                </div>
-              </div>
-
-              <div className="rounded-[30px] border border-[var(--line)] bg-white/92 p-4 shadow-[var(--shadow-soft)]">
-                <div className="min-h-[110px] rounded-[22px] bg-[var(--panel)] px-5 py-4 text-[15px] text-[var(--muted)]">
-                  消息
-                </div>
-              </div>
-            </div>
-
-            <div className="border-l border-[var(--line)] bg-white p-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-[15px] font-medium">
-                  <Sparkles className="h-4 w-4 text-[var(--muted)]" strokeWidth={1.9} />
-                  Workspace
-                </div>
-                <MoreHorizontal className="h-4 w-4 text-[var(--muted)]" strokeWidth={1.9} />
-              </div>
-              <div className="mt-6 flex h-[calc(100%-40px)] flex-col items-center justify-center text-center">
-                <Sparkles className="h-12 w-12 text-[var(--muted)]" strokeWidth={1.6} />
-                <p className="mt-5 text-[28px] font-semibold tracking-[-0.04em]">
-                  Select a result
-                </p>
-                <p className="mt-3 max-w-[250px] text-[14px] leading-[1.8] text-[var(--muted)]">
-                  Preview images, inspect prompts, and keep generation work in a
-                  dedicated right-side workspace.
+            <div className="mt-4 flex items-center justify-between rounded-[24px] border border-[var(--line)] bg-white/76 px-5 py-4 text-[14px] text-[var(--muted)] backdrop-blur-xl">
+              <div>
+                <p className="font-medium text-[var(--ink)]">Live product concept</p>
+                <p className="mt-1">
+                  Generated with `image2` from the actual product direction: board
+                  sidebar, central chat, and right-side workspace.
                 </p>
               </div>
+              <MoreHorizontal className="h-4 w-4 shrink-0" strokeWidth={1.9} />
             </div>
           </div>
         </div>
       </section>
-    </div>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <div className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full text-[var(--muted)]">
-      <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden="true">
-        <path
-          d="m5.5 10 3 3 6-6"
-          stroke="currentColor"
-          strokeWidth="1.9"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
     </div>
   );
 }
